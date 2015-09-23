@@ -1,4 +1,4 @@
-# ISIM Schedule Inspector
+# IBM Security Identity Manager Schedule Inspector
 
 This script answers the question "what will ISIM do and when?". It does so by intelligently decoding the scheduled events table in ISIM.
 Useful for a mass export of the recon schedules, finding out next steps for in-flight workflows, checking for inconsistencies in the table etc.
