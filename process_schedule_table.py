@@ -2,14 +2,12 @@
 2015 (c) Alex Ivkin
 v1.2
 
-This script answers the questions "what will ISIM do and when". It does so by intelligently decoding the scheduled events table in ISIM. 
+This script answers the questions "what will ISIM do and when". It does so by intelligently decoding the scheduled events table in ISIM.
 Useful for a mass export of the recon schedules, finding out next steps for in-flight workflows, inconsistencies in the table etc.
-
-The events in the scheduled_message are processed by an ISIM spooler periodically. More documentation of the table is in the ISIM 6.0 Database and Directory Server Schema Reference document
 
 The scripts creates a table digest, a cleanup SQL script and and a full binary dump
 * scheduled_message_digest.csv - a readable, CSV formatted digest of the scheduled_message table
-* scheduled_message_cleanup.csv - SQL script to remove invalid references and obsolete entries 
+* scheduled_message_cleanup.csv - SQL script to remove invalid references and obsolete entries
 * scheduled_message.dump - raw, but decoded and unzipped dump of the messages from the table, for indepth investigations.
 
 ## Setup
@@ -28,16 +26,16 @@ If your DB/LDAP creds are encrypted and stored in a keystore copy the appropriat
 
 Copy the following libraries from isim\lib and jre\jre\lib to the local isim\lib folder
 * itim_common.jar - common ITIM functions (EncryptionManager and PropertiesManager)
-* itim_server.jar - java reflector for com.ibm.itim.scheduling, com.ibm.itim.remoteservices.ejb.mediation and other ISIM server classes, 
+* itim_server.jar - java reflector for com.ibm.itim.scheduling, com.ibm.itim.remoteservices.ejb.mediation and other ISIM server classes,
 * jlog.jar- logger for itim_server and others  com.ibm.log
 * j2ee.jar- javax.ejb, used by the itim server classes
 * aspectjrt.jar - org.aspectj, used by the itim server classes
 * enroleagent.jar - com.ibm.daml, used by the itim server classes
-* ibmjceprovider.jar (from IBM JVM jvm/lib/ext) - com.ibm.crypto.provider 
+* ibmjceprovider.jar (from IBM JVM jvm/lib/ext) - com.ibm.crypto.provider
 * ibmpkcs.jar (from IBM JVM jvm/lib/) - com.ibm.misc/BASE64Decoder
 * db2jcc.jar or other appropriate jar - your JDBC driver
 
-## Usage: 
+## Usage:
 `jython -J-cp "isim/data;isim/lib/*" process_schedule_table.py`
 
 Tested on Win7
@@ -64,7 +62,7 @@ from com.ibm.itim.orchestration.lifecycle import LifecycleRuleMessageObject
 #from com.ibm.itim.scheduling import ScheduledMessage
 
 # get the DB connection properties
-pm=com.ibm.itim.common.properties.PropertiesManager.gInstance() # we could use straght java, but this is easier. java.util.Properties().load(java.io.FileInputStream(java.lang.System.getProperty("isim.path")+"/enrole.properties"))
+pm=com.ibm.itim.common.properties.PropertiesManager.gInstance() # we could also use straght java: java.util.Properties().load(java.io.FileInputStream(java.lang.System.getProperty("isim.path")+"/enrole.properties"))
 isimdburl=pm.getProperty("enrole.database","database.jdbc.driverUrl")
 isimdbuser=pm.getProperty("enrole.database","database.db.user")
 # decrypt password if needed
@@ -108,7 +106,7 @@ for line in cur.fetchall():
     percent = int(count*100/cur.rowcount)
     sys.stdout.write("\rProcessing...%d%%" % percent)
     sys.stdout.flush()
-    # the following message assignment is a bruteforce guess - may not be the right field. Enable the following line to see the full string 
+    # the following message assignment is a bruteforce guess - may not be the right field. Enable the following line to see the full string
     #print line
     if line[2] is not None:
         message=line[2]

@@ -31,16 +31,7 @@ class Directory:
         for result in results:
             pyresult={'dn':result.nameInNamespace.lower()} # force case insensitivity on the DN
             for attribute in result.attributes.all:
-                '''pyvalue=[]
-                for value in attribute.all: # this gets a namingenumeration
-                    pyvalue.append(value)
-                pyresult[attribute.getID()]=pyvalue
-                '''
                 pyresult[attribute.getID().lower()]=[value for value in attribute.all] #convert namingenumeration
-                # if not isinstance(attribute.all,str) else attribute.all
-                #if result.nameInNamespace.lower() == "erglobalid=4080670424199979623,ou=0,ou=accounts,erglobalid=00000000000000000000,ou=PGE,DC=ITIM,DC=DOM".lower() or \
-                #    result.nameInNamespace.lower() == "erglobalid=205269991916085157,ou=0,ou=accounts,erglobalid=00000000000000000000,ou=PGE,DC=ITIM,DC=DOM".lower() :
-                #    print "a %s=%s(%s)"%(attribute.getID(),pyresult[attribute.getID()],attribute.size())
             pyresults.append(pyresult)
         return pyresults
 
@@ -71,18 +62,9 @@ class Directory:
         if dn is None:
             return None
         try:
-            #print "lookingup "+dn
             attributes=self.ctx.getAttributes(dn) # without this call the lookup would return a new (blank) object
-            #print "pythonizing "+self.ctx.lookup(dn)
-            #print type(self.ctx.lookup(dn))
-            #print self.ctx.search(dn,None)
-            #return self.pythonize(self.ctx.search(dn,None))[0]
             pyresult={}
             for attribute in attributes.all:
-                #pyvalue=[]
-                #for value in attribute.all: # this gets a namingenumeration
-                #    pyvalue.append(value)
-                #pyresult[attribute.getID()]=pyvalue
                 pyresult[attribute.getID().lower()]=[value for value in attribute.all] #convert namingenumeration
             return pyresult
         except:
