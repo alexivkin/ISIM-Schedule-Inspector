@@ -2,12 +2,12 @@
 2015 (c) Alex Ivkin
 v1.2
 
-This script answers the questions "what will ISIM do and when". It does so by intelligently decoding the scheduled events table in ISIM.
+This script answers the questions "what will ISIM do and when". It does so by intelligently decoding the scheduled events table in ISIM. 
 Useful for a mass export of the recon schedules, finding out next steps for in-flight workflows, inconsistencies in the table etc.
 
 The scripts creates a table digest, a cleanup SQL script and and a full binary dump
 * scheduled_message_digest.csv - a readable, CSV formatted digest of the scheduled_message table
-* scheduled_message_cleanup.csv - SQL script to remove invalid references and obsolete entries
+* scheduled_message_cleanup.csv - SQL script to remove invalid references and obsolete entries 
 * scheduled_message.dump - raw, but decoded and unzipped dump of the messages from the table, for indepth investigations.
 
 ## Setup
@@ -26,19 +26,19 @@ If your DB/LDAP creds are encrypted and stored in a keystore copy the appropriat
 
 Copy the following libraries from isim\lib and jre\jre\lib to the local isim\lib folder
 * itim_common.jar - common ITIM functions (EncryptionManager and PropertiesManager)
-* itim_server.jar - java reflector for com.ibm.itim.scheduling, com.ibm.itim.remoteservices.ejb.mediation and other ISIM server classes,
+* itim_server.jar - java reflector for com.ibm.itim.scheduling, com.ibm.itim.remoteservices.ejb.mediation and other ISIM server classes, 
 * jlog.jar- logger for itim_server and others  com.ibm.log
 * j2ee.jar- javax.ejb, used by the itim server classes
 * aspectjrt.jar - org.aspectj, used by the itim server classes
 * enroleagent.jar - com.ibm.daml, used by the itim server classes
-* ibmjceprovider.jar (from IBM JVM jvm/lib/ext) - com.ibm.crypto.provider
+* ibmjceprovider.jar (from IBM JVM jvm/lib/ext) - com.ibm.crypto.provider 
 * ibmpkcs.jar (from IBM JVM jvm/lib/) - com.ibm.misc/BASE64Decoder
 * db2jcc.jar or other appropriate jar - your JDBC driver
 
-## Usage:
+## Usage: 
 `jython -J-cp "isim/data;isim/lib/*" process_schedule_table.py`
 
-Tested on Win7
+Tested on Win7, ITIM 5.1, ISIM 6.0
 
 
 """
@@ -57,9 +57,7 @@ import gzip
 import time
 import com # lazy way to link all the ISIM libs
 
-from com.ibm.itim.remoteservices.ejb.mediation import ServiceProviderReconciliationMessageObject
 from com.ibm.itim.orchestration.lifecycle import LifecycleRuleMessageObject
-#from com.ibm.itim.scheduling import ScheduledMessage
 
 # get the DB connection properties
 pm=com.ibm.itim.common.properties.PropertiesManager.gInstance() # we could also use straght java: java.util.Properties().load(java.io.FileInputStream(java.lang.System.getProperty("isim.path")+"/enrole.properties"))
@@ -106,7 +104,7 @@ for line in cur.fetchall():
     percent = int(count*100/cur.rowcount)
     sys.stdout.write("\rProcessing...%d%%" % percent)
     sys.stdout.flush()
-    # the following message assignment is a bruteforce guess - may not be the right field. Enable the following line to see the full string
+    # the following message assignment is a bruteforce guess - may not be the right field. Enable the following line to see the full string 
     #print line
     if line[2] is not None:
         message=line[2]
@@ -180,9 +178,33 @@ for line in cur.fetchall():
         else: # native java serialization
             # deserialize that object
             obj=ObjectInputStream(ByteArrayInputStream(message)).readObject()
-            print>>fout,"new,",
-            msgbody=obj.getMessage()
-            if type(msgbody) == ServiceProviderReconciliationMessageObject:
+            msgtime=obj.getSchedule()
+            if type(msgtime) == com.ibm.itim.scheduling.RecurringIntervalSchedule:
+                timestring="Every %s mins%s" %(msgtime.getInterval(), "and %s secs" % msgtime.getIntervalSec() if msgtime.getIntervalSec() else "")
+            elif type(msgtime) == com.ibm.itim.scheduling.RecurringTimeSchedule:
+                timearray=[]
+                if msgtime.isDaily():
+                    timearray.append("daily")
+                if msgtime.isMonthly():
+                    timearray.append("monthly")
+                if msgtime.isWeekly():
+                    timearray.append("weekly")
+                if msgtime.isHourly():
+                    timearray.append("hourly")
+                if msgtime.isMinutely():
+                    timearray.append("every minute")
+                if msgtime.isQuarterly():
+                    timearray.append("quarterly")
+                if msgtime.isSemiAnnually():
+                    timearray.append("semi-annualy")
+                timestring="Repeating "+",".join(timearray)
+            elif type(msgtime)==com.ibm.itim.scheduling.OneTimeDateSchedule:
+                timestring="One time event" #+str(msgtime.getDate())
+            else:
+                timestring="-"
+            print>>fout,timestring+",",
+            msgbody=obj.getMessage() # obj is of type com.ibm.itim.scheduling.ScheduledMessage
+            if type(msgbody) == com.ibm.itim.remoteservices.ejb.mediation.ServiceProviderReconciliationMessageObject:
                 header = "Recon"
                 service=isimldap.locate(msgbody.getServiceDN())
                 if service== None:
@@ -197,7 +219,8 @@ for line in cur.fetchall():
                 if msgbody.getRuleType()==LifecycleRuleMessageObject.RECERT_POLICY_TYPE:
                     header = isimldap.locate(msgbody.getPolicyDN())
                     if header is None:
-                        header = "Recertification"
+                        print>>fscript,"DELETE FROM SCHEDULED_MESSAGE WHERE SCHEDULED_MESSAGE_ID = %s " % line[1]
+                        header = "Bad recertification"
                 elif msgbody.getRuleType()==LifecycleRuleMessageObject.CATEGORY_TYPE:
                     header = msgbody.getCategoryName()
                 elif msgbody.getRuleType()==LifecycleRuleMessageObject.PROFILE_TYPE:
@@ -205,8 +228,14 @@ for line in cur.fetchall():
                 else:
                     header = "Unknown"
                 print>>fout,"%s lifecycle rule #%s" % (header, msgbody.getLifecycleRuleID()) # DistinguishedName
+            elif type(msgbody) == com.ibm.itim.mail.postoffice.PostOfficeMessageObject:
+                print>>fout,"Email message %s to #%s" % (msgbody.getTopic(),msgbody.getEmailAddress()) # DistinguishedName
+            elif type(msgbody) == com.ibm.itim.adhocreport.synchronization.AdhocSyncDataObject:
+                print>>fout,"Adhoc data sync %s for %s" % (msgbody.getSynchronizationUnit(),isimldap.locate(msgbody.getUserDN()))
+            elif type(msgbody) == com.ibm.itim.workflow.engine.AsyncCompletionMessageObject:
+                print>>fout,"Async completion of activity %s of process %s" % (msgbody.getActivityId(),msgbody.getProcessId())
             else:
-                print>>fout,msgbody
+                print>>fout,"%s (%s)" % (msgbody,type(msgbody))
         # class contains object and primitives and special-object that contains classes
         # all have names and class. latter two have values
     except SAXParseException:
